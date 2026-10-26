@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Покер Хата</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-dark: #05070c;
+      --card-bg: #0f172a;
+      --card-border: rgba(255, 255, 255, 0.1);
+      --accent-neon: #00ffb9;
+      --accent-gold: #ffd700;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .user-profile-mini { display: flex; align-items: center; gap: 12px; }
+    .avatar-mini {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-neon), #00b8ff);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 15px; color: #000;
+      box-shadow: 0 0 12px rgba(0, 255, 185, 0.35);
+    }
+    .balance-badge {
+      background: rgba(0, 255, 185, 0.08);
+      border: 1px solid var(--accent-neon);
+      color: var(--accent-neon);
+      padding: 6px 14px; border-radius: 20px;
+      font-weight: 700; font-size: 14px;
+    }
+
+    .content { flex: 1; overflow-y: auto; position: relative; padding-bottom: 20px; }
+    .tab-screen { display: none; padding: 16px; box-sizing: border-box; }
+    .tab-screen.active { display: block; }
+
+    .section-title { font-size: 18px; font-weight: 700; margin-bottom: 14px; color: var(--text-main); }
+
+    .card-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px; padding: 18px; margin-bottom: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+    .stat-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px; border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .stat-val { font-size: 20px; font-weight: 700; color: var(--accent-neon); }
+    .stat-lbl { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    .table-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px; padding: 16px; margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .table-info h4 { color: var(--accent-neon); margin-bottom: 4px; font-size: 16px; }
+    .table-info p { font-size: 12px; color: var(--text-muted); }
+    .btn-neon {
+      background: linear-gradient(135deg, var(--accent-neon), #00c896);
+      color: #000; border: none; padding: 10px 20px;
+      border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 255, 185, 0.3);
+    }
+
+    .leaderboard-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .leaderboard-item.top-1 { border-color: var(--accent-gold); background: linear-gradient(135deg, rgba(255,215,0,0.1), var(--card-bg)); }
+    .rank-info { display: flex; align-items: center; gap: 14px; }
+    .rank-num { font-weight: 700; font-size: 16px; color: var(--text-muted); width: 24px; text-align: center; }
+    .top-1 .rank-num { color: var(--accent-gold); }
+    .player-name { font-weight: 600; font-size: 15px; }
+    .player-score { color: var(--accent-neon); font-weight: 700; font-size: 15px; }
+
+    .shop-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px; padding: 16px; margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: relative; overflow: hidden;
+    }
+    .shop-card.sale { border-color: var(--accent-gold); }
+    .sale-badge {
+      position: absolute; top: 0; right: 0; background: var(--accent-gold); color: #000;
+      font-size: 10px; font-weight: 700; padding: 3px 10px; border-bottom-left-radius: 10px;
+    }
+    .btn-stars {
+      background: linear-gradient(135deg, var(--accent-gold), #ff8c00);
+      color: #000; border: none; padding: 10px 18px;
+      border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+    }
+
+    .poker-table-container { display: flex; flex-direction: column; align-items: center; }
+    .poker-table {
+      width: 100%; max-width: 350px; height: 230px;
+      background: radial-gradient(circle, #1e293b 0%, #090d16 100%);
+      border: 3px solid var(--accent-neon);
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 0 25px rgba(0, 255, 185, 0.25);
+      border-radius: 120px; position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      margin-bottom: 15px;
+    }
+    .pot-info {
+      background: rgba(0,0,0,0.7); border: 1px solid var(--accent-neon);
+      color: var(--accent-neon); padding: 5px 14px; border-radius: 14px;
+      font-size: 13px; font-weight: 700; margin-bottom: 12px;
+    }
+    .cards-row { display: flex; gap: 6px; }
+    .card {
+      width: 40px; height: 56px; background: #ffffff; border-radius: 6px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 4px; font-weight: 700; font-size: 13px; color: #111;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+    }
+    .card.red { color: #e74c3c; }
+    .action-panel { width: 100%; max-width: 350px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; }
+    .btn-action {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      color: #fff; padding: 14px; border-radius: 14px; font-weight: 700;
+      font-size: 14px; text-align: center; cursor: pointer;
+    }
+    .btn-action.fold { border-color: #ff4757; color: #ff4757; }
+    .btn-action.raise { background: var(--accent-neon); color: #000; border: none; }
+
+    .navbar {
+      display: flex; justify-content: space-around; align-items: center;
+      height: 65px; background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid var(--card-border); backdrop-filter: blur(15px);
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      color: var(--text-muted); font-size: 11px; font-weight: 500; cursor: pointer;
+    }
+    .nav-item.active { color: var(--accent-neon); }
+    .nav-icon { font-size: 20px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="user-profile-mini">
+      <div class="avatar-mini" id="user-avatar">ПХ</div>
+      <div>
+        <div style="font-size: 14px; font-weight: 700;" id="user-name">Игрок</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Покер Хата VIP</div>
+      </div>
+    </div>
+    <div class="balance-badge">💰 <span id="balance">1000</span></div>
+  </div>
+
+  <div class="content">
+    <div class="tab-screen active" id="tab-profile">
+      <div class="card-box" style="text-align: center;">
+        <h3 style="color: var(--accent-neon); margin-bottom: 6px;">Покер Хата • Профиль</h3>
+        <p style="font-size: 13px; color: var(--text-muted);">Ваша личная статистика</p>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-val" id="stat-wins">0</div>
+            <div class="stat-lbl">Побед</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="stat-games">0</div>
+            <div class="stat-lbl">Сыграно игр</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="stat-record">0 💰</div>
+            <div class="stat-lbl">Рекорд выигрыша</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" style="color: var(--accent-gold);">PRO</div>
+            <div class="stat-lbl">Статус</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-screen" id="tab-lobby">
+      <div class="section-title">Столы Покер Хаты</div>
+      <div class="table-card">
+        <div class="table-info">
+          <h4>Новичок (Hold'em)</h4>
+          <p>Ставки: 50 / 100 💰 • Игроки: 5/9</p>
+        </div>
+        <button class="btn-neon" onclick="switchTab('table')">Играть</button>
+      </div>
+      <div class="table-card">
+        <div class="table-info">
+          <h4>Профи (Hold'em)</h4>
+          <p>Ставки: 500 / 1 000 💰 • Игроки: 7/9</p>
+        </div>
+        <button class="btn-neon" onclick="switchTab('table')">Играть</button>
+      </div>
+      <div class="table-card">
+        <div class="table-info">
+          <h4>Хайроллер VIP</h4>
+          <p>Ставки: 5K / 10K 💰 • Игроки: 3/9</p>
+        </div>
+        <button class="btn-neon" onclick="switchTab('table')">Играть</button>
+      </div>
+    </div>
+
+    <div class="tab-screen" id="tab-top">
+      <div class="section-title">🏆 Доска Почёта</div>
+      <div id="leaderboard-list"></div>
+    </div>
+
+    <div class="tab-screen" id="tab-shop">
+      <div class="section-title">Магазин фишек (Telegram Stars ⭐)</div>
+      <div class="shop-card">
+        <div class="table-info">
+          <h4>Стартовый пак</h4>
+          <p>100 фишек (1 ⭐ = 100 💰)</p>
+        </div>
+        <button class="btn-stars" onclick="buyChips(100, 1)">⭐ 1</button>
+      </div>
+      <div class="shop-card">
+        <div class="table-info">
+          <h4>Пакет «Игрок»</h4>
+          <p>600 фишек (+100 бонус)</p>
+        </div>
+        <button class="btn-stars" onclick="buyChips(600, 5)">⭐ 5</button>
+      </div>
+      <div class="shop-card sale">
+        <div class="sale-badge">ВЫГОДА 25%</div>
+        <div class="table-info">
+          <h4>Пакет «Хайроллер»</h4>
+          <p>2 500 фишек (+500 бонус)</p>
+        </div>
+        <button class="btn-stars" onclick="buyChips(2500, 18)">⭐ 18</button>
+      </div>
+    </div>
+
+    <div class="tab-screen" id="tab-table">
+      <div class="poker-table-container">
+        <div class="poker-table">
+          <div class="pot-info">БАНК: <span id="table-pot">500</span> 💰</div>
+          <div class="cards-row">
+            <div class="card"><div>10</div><div style="color:red">♥</div></div>
+            <div class="card"><div>J</div><div>♠</div></div>
+            <div class="card red"><div>Q</div><div style="color:red">♦</div></div>
+          </div>
+        </div>
+        <div style="text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 12px; color: var(--text-muted);">Ваши карты на руках</div>
+          <div class="cards-row" style="justify-content: center; margin-top: 6px;">
+            <div class="card red"><div>A</div><div style="color:red">♥</div></div>
+            <div class="card"><div>K</div><div>♠</div></div>
+          </div>
+        </div>
+        <div class="action-panel">
+          <div class="btn-action fold" onclick="playerAction('fold')">Фолд</div>
+          <div class="btn-action" onclick="playerAction('call')">Колл</div>
+          <div class="btn-action raise" onclick="playerAction('win')">Раздача</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="navbar">
+    <div class="nav-item active" onclick="switchTab('profile', this)">
+      <div class="nav-icon">👤</div>
+      <div>Профиль</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('lobby', this)">
+      <div class="nav-icon">🎴</div>
+      <div>Лобби</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('top', this)">
+      <div class="nav-icon">🏆</div>
+      <div>Топ</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('shop', this)">
+      <div class="nav-icon">⭐</div>
+      <div>Магазин</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('table', this)">
+      <div class="nav-icon">🎲</div>
+      <div>Стол</div>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    let balance = 1000;
+    let stats = { wins: 0, games: 0, record: 0 };
+    let playerName = "Игрок";
+
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      const user = tg.initDataUnsafe.user;
+      playerName = user.first_name || "Игрок";
+      document.getElementById('user-name').innerText = playerName;
+      if (user.first_name) {
+        document.getElementById('user-avatar').innerText = user.first_name.substring(0, 2).toUpperCase();
+      }
+    }
+
+    let topPlayers = [
+      { name: "Александр (Вы)", score: balance, isUser: true },
+      { name: "Maxim_VIP", score: 452000 },
+      { name: "CryptoKing", score: 389000 },
+      { name: "HoldemMaster", score: 275000 },
+      { name: "Lucky777", score: 198000 },
+      { name: "AceOfSpades", score: 145000 },
+      { name: "PokerFace", score: 98000 },
+      { name: "BotKiller", score: 67000 }
+    ];
+
+    function updateLeaderboard() {
+      const userObj = topPlayers.find(p => p.isUser);
+      if (userObj) userObj.score = balance;
+      topPlayers.sort((a, b) => b.score - a.score);
+
+      const listContainer = document.getElementById('leaderboard-list');
+      listContainer.innerHTML = '';
+
+      topPlayers.forEach((player, index) => {
+        const item = document.createElement('div');
+        item.className = `leaderboard-item ${index === 0 ? 'top-1' : ''}`;
+        item.innerHTML = `
+          <div class="rank-info">
+            <div class="rank-num">#${index + 1}</div>
+            <div class="player-name">${player.name}</div>
+          </div>
+          <div class="player-score">${player.score.toLocaleString()} 💰</div>
+        `;
+        listContainer.appendChild(item);
+      });
+    }
+
+    function updateUI() {
+      document.getElementById('balance').innerText = balance.toLocaleString();
+      document.getElementById('stat-wins').innerText = stats.wins;
+      document.getElementById('stat-games').innerText = stats.games;
+      document.getElementById('stat-record').innerText = stats.record.toLocaleString() + ' 💰';
+      updateLeaderboard();
+    }
+
+    function switchTab(tabName, el) {
+      document.querySelectorAll('.tab-screen').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+
+      document.getElementById('tab-' + tabName).classList.add('active');
+
+      if (el) {
+        el.classList.add('active');
+      } else {
+        const navItems = document.querySelectorAll('.nav-item');
+        if (tabName === 'profile') navItems[0].classList.add('active');
+        if (tabName === 'lobby') navItems[1].classList.add('active');
+        if (tabName === 'top') navItems[2].classList.add('active');
+        if (tabName === 'shop') navItems[3].classList.add('active');
+        if (tabName === 'table') navItems[4].classList.add('active');
+      }
+      if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    }
+
+    function buyChips(amount, stars) {
+      balance += amount;
+      updateUI();
+      if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      alert(`🎉 Покупка успешна! Начислено ${amount} фишек.`);
+    }
+
+    function playerAction(type) {
+      stats.games++;
+      if (type === 'win' || Math.random() > 0.4) {
+        let winSum = 500;
+        balance += winSum;
+        stats.wins++;
+        if (winSum > stats.record) stats.record = winSum;
+        alert(`🎉 Победа! Вы выиграли ${winSum} 💰`);
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      } else {
+        balance = Math.max(0, balance - 100);
+        alert(`❌ Раздача проиграна (-100 💰)`);
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      }
+      updateUI();
+    }
+
+    updateUI();
+  </script>
+</body>
